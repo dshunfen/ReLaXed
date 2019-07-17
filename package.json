@@ -34,7 +34,6 @@
     "node-sass": "^4.9.0",
     "pug": "^2.0.3",
     "puppeteer": "^1.8.0",
-    "semantic-ui-offline": "^2.4.1-1",
     "vega": "^5.4.0",
     "vega-embed": "^4.2.1",
     "vega-lite": "^2.7.0"
