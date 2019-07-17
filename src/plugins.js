@@ -139,8 +139,16 @@ var updateRegisteredPlugins = async function (relaxedGlobals, inputDir) {
     '.jpg'
   ]
 
+  relaxedGlobals.pluginExtensionMapping = {}
+
   for (var watcher of relaxedGlobals.pluginHooks.watchers) {
-    var exts = watcher.instance.extensions
+    let exts = watcher.instance.extensions
+    let renderExtension = watcher.instance.renderExtension;
+    if(renderExtension) {
+      exts.map(ext => {
+        relaxedGlobals.pluginExtensionMapping[ext] = renderExtension
+      })
+    }
     relaxedGlobals.watchedExtensions = relaxedGlobals.watchedExtensions.concat(exts)
   }
 }

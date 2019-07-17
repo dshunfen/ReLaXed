@@ -5,11 +5,14 @@ const path = require('path')
 const csv = require('csvtojson')
 const html2jade = require('html2jade')
 
+const RENDER_EXT = '.pug'
+
 exports.constructor = async function (params) {
   return {
     watchers: [
       {
         extensions: ['.table.csv', '.htable.csv'],
+        renderExtension: RENDER_EXT,
         async handler (tablePath, page) {
           await csvTtableToPug(tablePath)
         }
@@ -34,7 +37,7 @@ var csvTtableToPug = async function (tablePath) {
     tbody: rows
   })
   console.log(tablePath, header, rows)
-  var pugPath = tablePath.substr(0, tablePath.length - extension.length) + '.pug'
+  var pugPath = tablePath.substr(0, tablePath.length - extension.length) + RENDER_EXT
   var jade = await new Promise(resolve => {
     html2jade.convertHtml(html, { bodyless: true }, function (err, jade) {
       if (err) {

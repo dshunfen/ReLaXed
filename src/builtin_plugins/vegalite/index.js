@@ -2,11 +2,14 @@ const pug = require('pug')
 const fs = require('fs')
 const path = require('path')
 
+const RENDER_EXT = '.svg'
+
 exports.constructor = async function (params) {
   return {
     watchers: [
       {
         extensions: ['.vegalite.json'],
+        renderExtension: RENDER_EXT,
         handler: vegaliteHandler
       }
     ]
@@ -29,6 +32,6 @@ var vegaliteHandler = async function (vegalitePath, page) {
     return el.outerHTML
   })
 
-  var svgPath = vegalitePath.substr(0, vegalitePath.length - '.vegalite.json'.length) + '.svg'
+  var svgPath = vegalitePath.substr(0, vegalitePath.length - '.vegalite.json'.length) + RENDER_EXT
   fs.writeFileSync(svgPath, svg)
 }

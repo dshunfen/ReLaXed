@@ -2,11 +2,14 @@ const pug = require('pug')
 const fs = require('fs')
 const path = require('path')
 
+const RENDER_EXT = '.png'
+
 exports.constructor = async function (params) {
   return {
     watchers: [
       {
         extensions: ['.chart.js'],
+        renderExtension: RENDER_EXT,
         handler: chartjsHandler
       }
     ]
@@ -25,7 +28,7 @@ var chartjsHandler = async function (chartjsPath, page) {
 
   const dataUrl = await page.evaluate(() => window.pngData)
   const { buffer } = parseDataUrl(dataUrl)
-  var pngPath = chartjsPath.substr(0, chartjsPath.length - '.chart.js'.length) + '.png'
+  var pngPath = chartjsPath.substr(0, chartjsPath.length - '.chart.js'.length) + RENDER_EXT
   fs.writeFileSync(pngPath, buffer, 'base64')
 }
 // Scrape (pull) images from the web

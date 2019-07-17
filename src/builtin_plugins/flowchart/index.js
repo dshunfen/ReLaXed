@@ -2,11 +2,14 @@ const pug = require('pug')
 const fs = require('fs')
 const path = require('path')
 
+const RENDER_EXT = '.svg'
+
 exports.constructor = async function (params) {
   return {
     watchers: [
       {
         extensions: ['.flowchart', '.flowchart.json'],
+        renderExtension: RENDER_EXT,
         handler: flowchartHandler
       }
     ]
@@ -46,6 +49,6 @@ var flowchartHandler = async function (flowchartPath, page) {
     el.classList.add('flowchart-svg')
     return el.outerHTML
   })
-  var svgPath = flowchartPath.substr(0, flowchartPath.lastIndexOf('.')) + '.svg'
+  var svgPath = flowchartPath.substr(0, flowchartPath.lastIndexOf('.')) + RENDER_EXT
   fs.writeFileSync(svgPath, svg)
 }

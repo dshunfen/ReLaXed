@@ -2,11 +2,14 @@ const pug = require('pug')
 const fs = require('fs')
 const path = require('path')
 
+const RENDER_EXT = '.svg'
+
 exports.constructor = async function (params) {
   return {
     watchers: [
       {
         extensions: ['.mermaid'],
+        renderExtension: RENDER_EXT,
         handler: mermaidHandler
       }
     ]
@@ -29,7 +32,7 @@ var mermaidHandler = async function (mermaidPath, page) {
     return el.outerHTML
   })
 
-  var svgPath = mermaidPath.substr(0, mermaidPath.lastIndexOf('.')) + '.svg'
+  var svgPath = mermaidPath.substr(0, mermaidPath.lastIndexOf('.')) + RENDER_EXT
 
   fs.writeFileSync(svgPath, svg)
 }
