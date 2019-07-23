@@ -10,7 +10,7 @@ const path = require('path')
 const fg = require('fast-glob');
 const fs = require('fs')
 const plugins = require('./plugins')
-const { masterToPDF } = require('./masterToPDF.js')
+const { fileToPdf } = require('./generate.js')
 
 var input, output
 const version = require('../package.json').version
@@ -24,6 +24,7 @@ program
   .option('-t, --temp [location]', 'Directory for temp file')
   .option('--bo, --build-once', 'Build once only, do not watch')
   .option('-l, --locals <json>', 'Json locals for pug rendering')
+  .option('--h, --html-only', 'Only build the HTML and not the PDF')
   .option('--basedir <location>', 'Base directory for absolute paths, e.g. /')
 
   .action(function (inp, out) {
@@ -121,7 +122,7 @@ const relaxedGlobals = {
 var updateConfig = async function () {
   if (configPath) {
     console.log(colors.magenta('... Reading config file'))
-    var data = fs.readFileSync(configPath, 'utf8')
+    var data = await fs.readFile(configPath, 'utf8')
     if (configPath.endsWith('.json')) {
       relaxedGlobals.config = JSON.parse(data)
     } else {
@@ -224,7 +225,7 @@ async function build (filepath) {
   }
 
   if (!taskPromise) {
-    taskPromise = masterToPDF(inputPath, relaxedGlobals, tempHTMLPath, outputPath, locals)
+    taskPromise = fileToPdf(inputPath, relaxedGlobals, tempHTMLPath, outputPath, locals)
   }
   await taskPromise
   var duration = ((performance.now() - t0) / 1000).toFixed(2)
