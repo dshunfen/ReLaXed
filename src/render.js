@@ -1,7 +1,9 @@
 const pug = require('pug')
 const colors = require('colors/safe')
 const cheerio = require('cheerio')
+const puppeteer = require('puppeteer')
 const fs = require('fs')
+const fg = require('fast-glob')
 const filesize = require('filesize')
 const path = require('path')
 const { performance } = require('perf_hooks')
@@ -9,24 +11,33 @@ const { inlineSource } = require('inline-source')
 
 exports.fileToPdf = async function (masterPath, relaxedGlobals, tempHTMLPath, outputPath, locals) {
   var timings = {t0: performance.now()}
-  var pluginHooks = relaxedGlobals.pluginHooks
 
-  var html = await generateHtmlFromPath(masterPath, pluginHooks, relaxedGlobals, locals)
+  var html = await generateHtmlFromPath(masterPath, relaxedGlobals, locals)
   html = await inlineTheThings(relaxedGlobals, html)
 
   timings.tHTML = performance.now()
   console.log(colors.magenta(`... HTML generated in ${((timings.tHTML - timings.t0) / 1000).toFixed(1)}s`))
 
-  await fs.writeFile(tempHTMLPath, html)
+  fs.writeFileSync(tempHTMLPath, html)
 
-  await renderPdf(relaxedGlobals, pluginHooks, tempHTMLPath, outputPath, html, timings)
+  await renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings)
 }
 
-exports.contentToHtml = async function (masterPug, relaxedGlobals, locals) {
-  var timings = {t0: performance.now()}
-  var pluginHooks = relaxedGlobals.pluginHooks
+exports.browseToPage = async function browseToPage(puppeteerConfig, relaxedGlobals) {
+  const browser = await puppeteer.launch(puppeteerConfig);
+  relaxedGlobals.puppeteerPage = await browser.newPage();
 
-  var html = await generateHtmlFromContent(masterPug, pluginHooks, relaxedGlobals, locals)
+  relaxedGlobals.puppeteerPage.on('pageerror', function(err) {
+    console.log(colors.red('Page error: ' + err.toString()));
+  }).on('error', function(err) {
+    console.log(colors.red('Error: ' + err.toString()));
+  });
+}
+
+exports.contentToHtml = async function (masterPug, relaxedGlobals) {
+  var timings = {t0: performance.now()}
+
+  var html = await generateHtmlFromContent(masterPug, relaxedGlobals, {})
   html = await inlineTheThings(relaxedGlobals, html)
 
   timings.tHTML = performance.now()
@@ -36,7 +47,25 @@ exports.contentToHtml = async function (masterPug, relaxedGlobals, locals) {
 
 }
 
+exports.renderDependencies = async function renderDependencies(p, pluginExtensionMapping) {
+  let extensions = Object.keys(pluginExtensionMapping).map(key => path.join(p, '**','*' + key));
+  const stream = fg.stream(extensions, { dot: true });
+  let notifiedOfDependencies = false;
 
+  for await (const sourceFile of stream) {
+    let sourceExt = path.extname(sourceFile);
+      if (sourceExt in pluginExtensionMapping) {
+        let renderedFile = sourceFile.substr(0, sourceFile.length - sourceExt.length) + pluginExtensionMapping[sourceExt];
+        if (!fs.existsSync(renderedFile)) {
+          if(!notifiedOfDependencies) {
+            console.log(colors.magenta.bold('\nRendering dependencies...'))
+            notifiedOfDependencies = true;
+          }
+          await build(sourceFile);
+        }
+      }
+  }
+}
 
 // Wait for all the content on the page to finish loading
 function waitForNetworkIdle (page, timeout, maxInflightRequests = 0) {
@@ -111,19 +140,24 @@ async function generateHtml(pluginHooks, masterPug, locals, masterPath, relaxedG
 
   for (var htmlModifier of pluginHooks.htmlModifiers) {
     html = await htmlModifier.instance(html)
-  }}
+  }
 
-async function generateHtmlFromContent(pluginHooks, masterPug, relaxedGlobals, locals) {
-  return generateHtml(pluginHooks, masterPug, locals, relaxedGlobals);
+  return html
 }
 
-async function generateHtmlFromPath(masterPath, pluginHooks, relaxedGlobals, locals) {
+async function generateHtmlFromContent(masterPug, relaxedGlobals, {}) {
+  var pluginHooks = relaxedGlobals.pluginHooks
+  return generateHtml(pluginHooks, masterPug, {}, relaxedGlobals.basedir, relaxedGlobals);
+}
+
+async function generateHtmlFromPath(masterPath, relaxedGlobals, locals) {
+  var pluginHooks = relaxedGlobals.pluginHooks
   var html
   if (masterPath.endsWith('.pug')) {
-    var masterPug = await fs.readFile(masterPath, 'utf8')
+    var masterPug = fs.readFileSync(masterPath, 'utf8')
     html = generateHtml(pluginHooks, masterPug, locals, masterPath, relaxedGlobals);
   } else if (masterPath.endsWith('.html')) {
-    html = await fs.readFile(masterPath, 'utf8')
+    html = fs.readFileSync(masterPath, 'utf8')
   }
 
   return html;
@@ -146,7 +180,8 @@ async function inlineTheThings(relaxedGlobals, html) {
   return html;
 }
 
-async function renderPdf(relaxedGlobals, pluginHooks, tempHTMLPath, outputPath, html, timings) {
+async function renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings) {
+  var pluginHooks = relaxedGlobals.pluginHooks
   var page = relaxedGlobals.puppeteerPage
   /*
    *            LOAD HTML

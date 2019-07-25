@@ -1,9 +1,15 @@
 const path = require('path')
 const colors = require('colors/safe')
 const builtinPlugins = require('./builtin_plugins')
-const fs = require('fs')
 
-exports.builtinDefaultPlugins = builtinPlugins.defaultPlugins
+var initializePlugins = async function () {
+  var builtinDefaultPlugins = builtinPlugins.defaultPlugins
+
+  // LOAD BUILT-IN "ALWAYS-ON" PLUGINS
+  for (var [i, plugin] of builtinDefaultPlugins.entries()) {
+    builtinDefaultPlugins[i] = await plugin.constructor()
+  }
+}
 
 var createConfigPlugin = async function (pluginName, parameters, localPath) {
   // for each plugin, look for a local definition, a built-in definition, or
@@ -154,5 +160,4 @@ var updateRegisteredPlugins = async function (relaxedGlobals, inputDir) {
 }
 
 exports.updateRegisteredPlugins = updateRegisteredPlugins
-exports.listPluginHooks = listPluginHooks
-exports.createConfigPlugin = createConfigPlugin
+exports.initializePlugins = initializePlugins

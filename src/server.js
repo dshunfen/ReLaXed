@@ -1,6 +1,7 @@
 const express = require('express')
 const path = require('path')
 const bodyParser = require('body-parser')
+const plugins = require('./plugins')
 
 // HTTP stuff
 const createError = require('http-errors')
@@ -8,6 +9,7 @@ const cookieParser = require('cookie-parser')
 const logger = require('morgan')
 
 const reportsRouter = require("./routes/reports")
+const { preConfigure } = require("./config");
 
 const app = express()
 
@@ -36,5 +38,27 @@ app.use(function(err, req, res, next) {
   res.status(err.status || 500);
   res.render('error');
 });
+
+async function fun() {
+  var puppeteerConfig = preConfigure(false)
+
+  var relaxedGlobals = {
+    busy: false,
+    config: {},
+    configPlugins: [],
+    basedir: '/home/dshunfenthal/dev/relaxed/ReLaXed-cato/report'
+  }
+
+  await plugins.initializePlugins()
+  await plugins.updateRegisteredPlugins(relaxedGlobals, relaxedGlobals.basedir)
+
+  app.set('puppeteerConfig', puppeteerConfig)
+  app.set('relaxedGlobals', relaxedGlobals)
+
+  console.log("Finished setting up server!")
+
+  return true;
+}
+fun().then((text) => console.log(text))
 
 module.exports = app;

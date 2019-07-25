@@ -1,8 +1,14 @@
-const app = require('../src/app');
+const plugins = require('../src/plugins')
+
+const app = require('../src/server');
+const fs = require('fs');
 
 // Test imports
 const chai = require('chai');
 const chaiHttp = require('chai-http');
+
+// Relaxed imports
+const { preConfigure } = require('../src/config')
 
 // Configure chai
 chai.use(chaiHttp);
@@ -10,8 +16,22 @@ chai.should();
 
 describe('Request to the report server', () => {
 
-    before(() => {
-        app.set('basedir', '/home/dshunfenthal/dev/relaxed/ReLaXed-cato');
+    before(async () => {
+
+        var puppeteerConfig = preConfigure(false)
+
+        var relaxedGlobals = {
+          busy: false,
+          config: {},
+          configPlugins: [],
+          basedir: '/home/dshunfenthal/dev/relaxed/ReLaXed-cato/report'
+        }
+
+        await plugins.initializePlugins()
+        await plugins.updateRegisteredPlugins(relaxedGlobals, relaxedGlobals.basedir)
+
+        app.set('puppeteerConfig', puppeteerConfig)
+        app.set('relaxedGlobals', relaxedGlobals)
 
     });
 
@@ -27,13 +47,14 @@ describe('Request to the report server', () => {
     });
 
     it('Can generate a report', (done) => {
-    chai.request(app)
-        .get('/reports/cato')
-        .query({'param': 'par'})
-        .end((err, res) => {
-            res.should.have.status(200);
-            console.log(res.body)
-            done();
-        });
+        let file = fs.readFileSync('test/hello.pug', 'utf8');
+        chai.request(app)
+            .post('/reports/cato')
+            .send({'content': file})
+            .end((err, res) => {
+                res.should.have.status(200);
+                console.log(res.text)
+                done();
+            });
     });
 });

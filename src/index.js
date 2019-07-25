@@ -3,14 +3,13 @@
 const colors = require('colors/safe')
 const program = require('commander')
 const chokidar = require('chokidar')
-const puppeteer = require('puppeteer')
 const yaml = require('js-yaml')
 const { performance } = require('perf_hooks')
 const path = require('path')
-const fg = require('fast-glob');
 const fs = require('fs')
 const plugins = require('./plugins')
-const { fileToPdf } = require('./generate.js')
+const { renderDependencies, fileToPdf, browseToPage } = require('./render')
+const { preConfigure } = require('./config')
 
 var input, output
 const version = require('../package.json').version
@@ -92,19 +91,7 @@ if (program.locals) {
   }
 }
 
-
-
-// Google Chrome headless configuration
-// See https://github.com/GoogleChrome/puppeteer/issues/3938 for disabled plugins yielding perf increase
-const puppeteerConfig = {
-  headless: true,
-  args: (!program.sandbox ? ['--no-sandbox'] : []).concat([
-    '--disable-translate',
-    '--disable-extensions',
-    '--disable-sync'
-  ])
-}
-
+let puppeteerConfig = preConfigure(program.sandbox)
 
 /*
  * ==============================================================
@@ -132,24 +119,13 @@ var updateConfig = async function () {
   await plugins.updateRegisteredPlugins(relaxedGlobals, inputDir)
 }
 
-
-
 async function main () {
   console.log(colors.magenta.bold('Launching ReLaXed...'))
 
-  // LOAD BUILT-IN "ALWAYS-ON" PLUGINS
-  for (var [i, plugin] of plugins.builtinDefaultPlugins.entries()) {
-    plugins.builtinDefaultPlugins[i] = await plugin.constructor()
-  }
+  await plugins.initializePlugins()
   await updateConfig()
-  const browser = await puppeteer.launch(puppeteerConfig)
-  relaxedGlobals.puppeteerPage = await browser.newPage()
 
-  relaxedGlobals.puppeteerPage.on('pageerror', function(err) {
-    console.log(colors.red('Page error: ' + err.toString()))
-  }).on('error', function(err) {
-    console.log(colors.red('Error: ' + err.toString()))
-  })
+  await browseToPage(puppeteerConfig, relaxedGlobals);
 
   await renderDependencies(inputDir, relaxedGlobals.pluginExtensionMapping)
 
@@ -161,27 +137,6 @@ async function main () {
     watch()
   }
 }
-
-async function renderDependencies(p, pluginExtensionMapping) {
-  let extensions = Object.keys(pluginExtensionMapping).map(key => path.join(p, '**','*' + key));
-  const stream = fg.stream(extensions, { dot: true });
-  let notifiedOfDependencies = false;
-
-  for await (const sourceFile of stream) {
-    let sourceExt = path.extname(sourceFile);
-      if (sourceExt in pluginExtensionMapping) {
-        let renderedFile = sourceFile.substr(0, sourceFile.length - sourceExt.length) + pluginExtensionMapping[sourceExt];
-        if (!fs.existsSync(renderedFile)) {
-          if(!notifiedOfDependencies) {
-            console.log(colors.magenta.bold('\nRendering dependencies...'))
-            notifiedOfDependencies = true;
-          }
-          await build(sourceFile);
-        }
-      }
-  }
-}
-
 
 /*
  * ==============================================================
@@ -235,8 +190,6 @@ async function build (filepath) {
 
 /**
  * Watch `watchLocations` paths for changes and continuously rebuild
- *
- * @param {puppeteer.Page} page
  */
 
 /*
