@@ -6,7 +6,6 @@
   "bin": {
     "relaxed": "src/index.js",
     "relaxed-server": "bin/www",
-    "relaxed-server-dev": "nodemon bin/www",
     "pretty-pdf-thumbnail": "src/cli-tools/pretty-pdf-thumbnail.js",
     "pdf2gif": "src/cli-tools/pdf2gif.js"
   },
