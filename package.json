@@ -5,33 +5,25 @@
   "main": "src/index.js",
   "bin": {
     "relaxed": "src/index.js",
-    "relaxed-server": "bin/www",
     "pretty-pdf-thumbnail": "src/cli-tools/pretty-pdf-thumbnail.js",
     "pdf2gif": "src/cli-tools/pdf2gif.js"
   },
   "scripts": {
-    "server": "node ./bin/www",
     "test": "mocha"
   },
   "author": "Zulko",
   "homepage": "https://github.com/RelaxedJS",
   "license": "ISC",
   "dependencies": {
-    "body-parser": "^1.19.0",
     "cheerio": "^1.0.0-rc.2",
     "chokidar": "^2.0.3",
     "colors": "^1.3.0",
     "commander": "^2.15.1",
-    "consolidate": "^0.15.1",
-    "cookie-parser": "~1.4.4",
     "csvtojson": "^2.0.3",
-    "debug": "~2.6.9",
     "deptree": "^1.0.0",
-    "express": "~4.16.1",
     "fast-glob": "^3.0.4",
     "filesize": "^3.6.1",
     "html2jade": "^0.8.6",
-    "http-errors": "~1.6.3",
     "inline-source": "^6.2.0",
     "jimp": "^0.5.4",
     "js-yaml": "^3.12.0",
@@ -40,22 +32,16 @@
     "katex": "^0.10.0-beta",
     "mathjax-node-page": "^3.0.1",
     "mermaid": "^8.1.0",
-    "morgan": "~1.9.1",
-    "multer": "^1.4.2",
     "node-sass": "^4.12.0",
     "pug": "^2.0.3",
     "puppeteer": "^1.8.0",
     "vega": "^5.4.0",
     "vega-embed": "^4.2.1",
-    "vega-lite": "^2.7.0",
-    "web-resource-inliner": "^4.3.3"
+    "vega-lite": "^2.7.0"
   },
   "devDependencies": {
-    "chai": "^4.2.0",
-    "chai-http": "^4.3.0",
     "diff": "^3.5.0",
     "mocha": "^5.2.0",
-    "nodemon": "^1.19.1",
     "pdf-image": "^2.0.0",
     "pixel-diff": "^1.0.1"
   }
