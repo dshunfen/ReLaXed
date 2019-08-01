@@ -9,11 +9,11 @@ const path = require('path')
 const { performance } = require('perf_hooks')
 const { inlineSource } = require('inline-source')
 
-exports.fileToPdf = async function (masterPath, relaxedGlobals, tempHTMLPath, outputPath, locals) {
+fileToPdf = async function (masterPath, relaxedGlobals, tempHTMLPath, outputPath, locals) {
   var timings = {t0: performance.now()}
 
   var html = await generateHtmlFromPath(masterPath, relaxedGlobals, locals)
-  html = await inlineTheThings(relaxedGlobals, html)
+  html = await inlineTheThings(relaxedGlobals, 'reportId', html)
 
   timings.tHTML = performance.now()
   console.log(colors.magenta(`... HTML generated in ${((timings.tHTML - timings.t0) / 1000).toFixed(1)}s`))
@@ -23,7 +23,7 @@ exports.fileToPdf = async function (masterPath, relaxedGlobals, tempHTMLPath, ou
   await renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings)
 }
 
-exports.browseToPage = async function browseToPage(puppeteerConfig, relaxedGlobals) {
+browseToPage = async function browseToPage(puppeteerConfig, relaxedGlobals) {
   const browser = await puppeteer.launch(puppeteerConfig);
   relaxedGlobals.puppeteerPage = await browser.newPage();
 
@@ -34,11 +34,11 @@ exports.browseToPage = async function browseToPage(puppeteerConfig, relaxedGloba
   });
 }
 
-exports.contentToHtml = async function (masterPug, relaxedGlobals) {
+contentToHtml = async function contentToHtml(masterPug, reportName, relaxedGlobals) {
   var timings = {t0: performance.now()}
 
-  var html = await generateHtmlFromContent(masterPug, relaxedGlobals, {})
-  html = await inlineTheThings(relaxedGlobals, html)
+  var html = await generateHtmlFromContent(masterPug, reportName, relaxedGlobals, {})
+  html = await inlineTheThings(relaxedGlobals, reportName, html)
 
   timings.tHTML = performance.now()
   console.log(colors.magenta(`... HTML generated in ${((timings.tHTML - timings.t0) / 1000).toFixed(1)}s`))
@@ -47,7 +47,7 @@ exports.contentToHtml = async function (masterPug, relaxedGlobals) {
 
 }
 
-exports.renderDependencies = async function renderDependencies(p, pluginExtensionMapping) {
+renderDependencies = async function renderDependencies(p, pluginExtensionMapping) {
   let extensions = Object.keys(pluginExtensionMapping).map(key => path.join(p, '**','*' + key));
   const stream = fg.stream(extensions, { dot: true });
   let notifiedOfDependencies = false;
@@ -104,7 +104,7 @@ function waitForNetworkIdle (page, timeout, maxInflightRequests = 0) {
   }
 }
 
-async function generateHtml(pluginHooks, masterPug, locals, masterPath, relaxedGlobals) {
+async function generateHtml(pluginHooks, masterPug, locals, masterPath) {
   var pluginPugHeaders = [];
   for (var pugHeader of pluginHooks.pugHeaders) {
     pluginPugHeaders.push(pugHeader.instance);
@@ -114,9 +114,9 @@ async function generateHtml(pluginHooks, masterPug, locals, masterPath, relaxedG
   var pugFilters = Object.assign(...pluginHooks.pugFilters.map(o => o.instance));
 
   var html = pug.render(pluginPugHeaders + '\n' + masterPug, Object.assign({}, locals ? locals : {}, {
-    filename: masterPath,
+    filename: path.join(masterPath, 'file.stuff'),
     fs: fs,
-    basedir: relaxedGlobals.basedir,
+    basedir: masterPath,
     cheerio: cheerio,
     __root__: path.dirname(masterPath),
     path: path,
@@ -145,9 +145,9 @@ async function generateHtml(pluginHooks, masterPug, locals, masterPath, relaxedG
   return html
 }
 
-async function generateHtmlFromContent(masterPug, relaxedGlobals, {}) {
+async function generateHtmlFromContent(masterPug, reportId, relaxedGlobals, {}) {
   var pluginHooks = relaxedGlobals.pluginHooks
-  return generateHtml(pluginHooks, masterPug, {}, relaxedGlobals.basedir, relaxedGlobals);
+  return generateHtml(pluginHooks, masterPug, {}, path.join(relaxedGlobals.basedir, reportId), relaxedGlobals);
 }
 
 async function generateHtmlFromPath(masterPath, relaxedGlobals, locals) {
@@ -163,7 +163,7 @@ async function generateHtmlFromPath(masterPath, relaxedGlobals, locals) {
   return html;
 }
 
-async function inlineTheThings(relaxedGlobals, html) {
+async function inlineTheThings(relaxedGlobals, reportId, html) {
    /*
    *            INLINE THE THINGS
    */
@@ -171,7 +171,7 @@ async function inlineTheThings(relaxedGlobals, html) {
 
     html = await inlineSource(html, {
       compress: true,
-      rootpath: path.resolve(relaxedGlobals.basedir),
+      rootpath: path.resolve(relaxedGlobals.basedir, reportId),
       svgAsImg: true,
     });
   } catch (err) {
@@ -273,3 +273,8 @@ async function renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings
   let pdfSize = filesize(fs.statSync(outputPath).size)
   console.log(colors.magenta(`... PDF written in ${duration}s (${pdfSize})`))
 }
+
+exports.fileToPdf = fileToPdf
+exports.browseToPage = browseToPage
+exports.contentToHtml = contentToHtml
+exports.renderDependencies = renderDependencies
