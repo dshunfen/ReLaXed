@@ -20,7 +20,16 @@ fileToPdf = async function (masterPath, relaxedGlobals, tempHTMLPath, outputPath
 
   fs.writeFileSync(tempHTMLPath, html)
 
-  await renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings)
+  return await renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings)
+}
+
+async function contentToPdf(html, relaxedGlobals, tempHTMLPath, outputPath) {
+  const timings = {t0: performance.now()};
+  timings.tHTML = timings.t0;
+
+  fs.writeFileSync(tempHTMLPath, html);
+
+  return await renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings);
 }
 
 browseToPage = async function browseToPage(puppeteerConfig, relaxedGlobals) {
@@ -266,15 +275,17 @@ async function renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings
   /*
    *            PRINT PAGE TO PDF
    */
-  await page.pdf(options)
+  const pdf = await page.pdf(options);
 
   timings.tPDF = performance.now()
   let duration = ((timings.tPDF - timings.tNetwork) / 1000).toFixed(1)
   let pdfSize = filesize(fs.statSync(outputPath).size)
   console.log(colors.magenta(`... PDF written in ${duration}s (${pdfSize})`))
+  return pdf;
 }
 
 exports.fileToPdf = fileToPdf
+exports.contentToPdf = contentToPdf
 exports.browseToPage = browseToPage
 exports.contentToHtml = contentToHtml
 exports.renderDependencies = renderDependencies
