@@ -3,7 +3,6 @@ const colors = require('colors/safe')
 const cheerio = require('cheerio')
 const puppeteer = require('puppeteer')
 const fs = require('fs')
-const fg = require('fast-glob')
 const filesize = require('filesize')
 const path = require('path')
 const { performance } = require('perf_hooks')
@@ -56,26 +55,6 @@ contentToHtml = async function contentToHtml(masterPug, reportName, relaxedGloba
 
 }
 
-renderDependencies = async function renderDependencies(p, pluginExtensionMapping) {
-  let extensions = Object.keys(pluginExtensionMapping).map(key => path.join(p, '**','*' + key));
-  const stream = fg.stream(extensions, { dot: true });
-  let notifiedOfDependencies = false;
-
-  for await (const sourceFile of stream) {
-    let sourceExt = path.extname(sourceFile);
-      if (sourceExt in pluginExtensionMapping) {
-        let renderedFile = sourceFile.substr(0, sourceFile.length - sourceExt.length) + pluginExtensionMapping[sourceExt];
-        if (!fs.existsSync(renderedFile)) {
-          if(!notifiedOfDependencies) {
-            console.log(colors.magenta.bold('\nRendering dependencies...'))
-            notifiedOfDependencies = true;
-          }
-          await build(sourceFile);
-        }
-      }
-  }
-}
-
 // Wait for all the content on the page to finish loading
 function waitForNetworkIdle (page, timeout, maxInflightRequests = 0) {
   page.on('request', onRequestStarted)
@@ -123,7 +102,7 @@ async function generateHtml(pluginHooks, masterPug, locals, masterPath) {
   var pugFilters = Object.assign(...pluginHooks.pugFilters.map(o => o.instance));
 
   var html = pug.render(pluginPugHeaders + '\n' + masterPug, Object.assign({}, locals ? locals : {}, {
-    filename: path.join(masterPath, 'file.stuff'),
+    filename: masterPath,
     fs: fs,
     basedir: masterPath,
     cheerio: cheerio,
@@ -180,7 +159,7 @@ async function inlineTheThings(relaxedGlobals, reportId, html) {
 
     html = await inlineSource(html, {
       compress: true,
-      rootpath: path.resolve(relaxedGlobals.basedir, reportId),
+      rootpath: relaxedGlobals.basedir,
       svgAsImg: true,
     });
   } catch (err) {
@@ -288,4 +267,3 @@ exports.fileToPdf = fileToPdf
 exports.contentToPdf = contentToPdf
 exports.browseToPage = browseToPage
 exports.contentToHtml = contentToHtml
-exports.renderDependencies = renderDependencies

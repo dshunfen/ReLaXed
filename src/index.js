@@ -7,8 +7,9 @@ const yaml = require('js-yaml')
 const { performance } = require('perf_hooks')
 const path = require('path')
 const fs = require('fs')
+const fg = require('fast-glob')
 const plugins = require('./plugins')
-const { renderDependencies, fileToPdf, browseToPage } = require('./render')
+const { fileToPdf, browseToPage } = require('./render')
 const { preConfigure } = require('./config')
 
 var input, output
@@ -119,6 +120,28 @@ var updateConfig = async function () {
   await plugins.updateRegisteredPlugins(relaxedGlobals, inputDir)
 }
 
+renderDependencies = async function renderDependencies(p, relaxedGlobals) {
+  let pluginExtMap = relaxedGlobals.pluginExtensionMapping;
+  let extensions = Object.keys(pluginExtMap).map(key => path.join(p, '**','*' + key));
+  const stream = fg.stream(extensions, { dot: true });
+  let notifiedOfDependencies = false;
+
+  for await (const sourceFile of stream) {
+    for (let [key, item] of Object.entries(pluginExtMap)) {
+      if (sourceFile.endsWith(key)) {
+        let renderedFile = sourceFile.substr(0, sourceFile.length - key.length) + item;
+        if (!fs.existsSync(renderedFile)) {
+          if (!notifiedOfDependencies) {
+            console.log(colors.magenta.bold('\nRendering dependencies...'))
+            notifiedOfDependencies = true;
+          }
+          await build(sourceFile);
+        }
+      }
+    }
+  }
+}
+
 async function main () {
   console.log(colors.magenta.bold('Launching ReLaXed...'))
 
@@ -127,7 +150,7 @@ async function main () {
 
   await browseToPage(puppeteerConfig, relaxedGlobals);
 
-  await renderDependencies(inputDir, relaxedGlobals.pluginExtensionMapping)
+  await renderDependencies(inputDir, relaxedGlobals)
 
   await build(inputPath)
 

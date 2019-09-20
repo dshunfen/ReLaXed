@@ -1,6 +1,7 @@
 const pug = require('pug')
 const fs = require('fs')
 const path = require('path')
+const vegaembed = require('vega-embed')
 
 const RENDER_EXT = '.svg'
 
@@ -12,7 +13,12 @@ exports.constructor = async function (params) {
         renderExtension: RENDER_EXT,
         handler: vegaliteHandler
       }
-    ]
+    ],
+    pugFilters: {
+      vegaLite (text, options) {
+        return vegaembed('#vis', text, {'renderer': 'svg'});
+      }
+    }
   }
 }
 
