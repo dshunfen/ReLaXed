@@ -3,4 +3,12 @@ script(src='https://cdn.jsdelivr.net/npm/vega-lite@2.7.0')
 script(src='https://cdn.jsdelivr.net/npm/vega-embed@4.2.1')
 #vis
 script(type='text/javascript').
-  vegaEmbed('#vis', !{vegaliteSpec}, {'renderer': 'svg'});
+  vegaEmbed('#vis', !{vegaliteSpec}, {'renderer': 'svg'})
+      .then(function (result) {
+        var el = document.querySelector('#vis svg');
+        var out = document.querySelector('#vis');
+        el.removeAttribute('height');
+        el.removeAttribute('width');
+        el.id = "vis"
+        out.outerHTML = el.outerHTML;
+  })
