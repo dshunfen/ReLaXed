@@ -22,13 +22,16 @@ fileToPdf = async function (masterPath, relaxedGlobals, tempHTMLPath, outputPath
   return await renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings)
 }
 
-async function contentToPdf(html, relaxedGlobals, tempHTMLPath, outputPath) {
+async function contentToPdf(html, relaxedGlobals, tempDir) {
   const timings = {t0: performance.now()};
   timings.tHTML = timings.t0;
 
-  fs.writeFileSync(tempHTMLPath, html);
+  let tempHtmlPath = path.resolve(tempDir, 'report.html')
+  let tempPdfOutputPath = path.resolve(tempDir, 'report.pdf')
 
-  return await renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings);
+  fs.writeFileSync(tempHtmlPath, html);
+
+  return await renderPdf(relaxedGlobals, tempHtmlPath, tempPdfOutputPath, html, timings);
 }
 
 browseToPage = async function browseToPage(puppeteerConfig, relaxedGlobals) {
