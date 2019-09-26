@@ -12,7 +12,7 @@ fileToPdf = async function (masterPath, relaxedGlobals, tempHTMLPath, outputPath
   var timings = {t0: performance.now()}
 
   var html = await generateHtmlFromPath(masterPath, relaxedGlobals, locals)
-  html = await inlineTheThings(relaxedGlobals, 'reportId', html)
+  html = await inlineTheThings(relaxedGlobals, null, html)
 
   timings.tHTML = performance.now()
   console.log(colors.magenta(`... HTML generated in ${((timings.tHTML - timings.t0) / 1000).toFixed(1)}s`))
@@ -106,7 +106,7 @@ async function generateHtml(pluginHooks, masterPug, locals, masterPath) {
     fs: fs,
     basedir: masterPath,
     cheerio: cheerio,
-    __root__: path.dirname(masterPath),
+    __root__: masterPath,
     path: path,
     require: require,
     performance: performance,
@@ -159,7 +159,7 @@ async function inlineTheThings(relaxedGlobals, reportId, html) {
 
     html = await inlineSource(html, {
       compress: true,
-      rootpath: relaxedGlobals.basedir,
+      rootpath: reportId ? path.join(relaxedGlobals.basedir, reportId) : relaxedGlobals.basedir,
       svgAsImg: true,
     });
   } catch (err) {
