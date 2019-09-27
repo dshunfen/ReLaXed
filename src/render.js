@@ -8,7 +8,7 @@ const path = require('path')
 const { performance } = require('perf_hooks')
 const { inlineSource } = require('inline-source')
 
-fileToPdf = async function (masterPath, relaxedGlobals, tempHTMLPath, outputPath, locals) {
+fileToPdf = async function (masterPath, relaxedGlobals, tempHTMLPath, outputPath, locals, page) {
   var timings = {t0: performance.now()}
 
   var html = await generateHtmlFromPath(masterPath, relaxedGlobals, locals)
@@ -19,10 +19,10 @@ fileToPdf = async function (masterPath, relaxedGlobals, tempHTMLPath, outputPath
 
   fs.writeFileSync(tempHTMLPath, html)
 
-  return await renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings)
+  return await renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings, page)
 }
 
-async function contentToPdf(html, relaxedGlobals, tempDir) {
+async function contentToPdf(html, relaxedGlobals, tempDir, page) {
   const timings = {t0: performance.now()};
   timings.tHTML = timings.t0;
 
@@ -31,18 +31,19 @@ async function contentToPdf(html, relaxedGlobals, tempDir) {
 
   fs.writeFileSync(tempHtmlPath, html);
 
-  return await renderPdf(relaxedGlobals, tempHtmlPath, tempPdfOutputPath, html, timings);
+  return await renderPdf(relaxedGlobals, tempHtmlPath, tempPdfOutputPath, html, timings, page);
 }
 
-browseToPage = async function browseToPage(puppeteerConfig, relaxedGlobals) {
+browseToPage = async function browseToPage(puppeteerConfig) {
   const browser = await puppeteer.launch(puppeteerConfig);
-  relaxedGlobals.puppeteerPage = await browser.newPage();
+  const page = await browser.newPage();
 
-  relaxedGlobals.puppeteerPage.on('pageerror', function(err) {
+  page.on('pageerror', function(err) {
     console.log(colors.red('Page error: ' + err.toString()));
   }).on('error', function(err) {
     console.log(colors.red('Error: ' + err.toString()));
   });
+  return page;
 }
 
 contentToHtml = async function contentToHtml(masterPug, reportName, relaxedGlobals) {
@@ -171,9 +172,12 @@ async function inlineTheThings(relaxedGlobals, reportId, html) {
   return html;
 }
 
-async function renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings) {
+async function renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings, page) {
   var pluginHooks = relaxedGlobals.pluginHooks
-  var page = relaxedGlobals.puppeteerPage
+  if (page === undefined) {
+    console.error('puppeteer page was not passed or is undefined');
+    throw 'puppeteer page was not passed or is undefined';
+  }
   /*
    *            LOAD HTML
    */

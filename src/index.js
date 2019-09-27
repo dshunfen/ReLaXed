@@ -120,7 +120,7 @@ var updateConfig = async function () {
   await plugins.updateRegisteredPlugins(relaxedGlobals, inputDir)
 }
 
-renderDependencies = async function renderDependencies(p, relaxedGlobals) {
+renderDependencies = async function renderDependencies(p, relaxedGlobals, page) {
   let pluginExtMap = relaxedGlobals.pluginExtensionMapping;
   let extensions = Object.keys(pluginExtMap).map(key => path.join(p, '**','*' + key));
   const stream = fg.stream(extensions, { dot: true });
@@ -135,7 +135,7 @@ renderDependencies = async function renderDependencies(p, relaxedGlobals) {
             console.log(colors.magenta.bold('\nRendering dependencies...'))
             notifiedOfDependencies = true;
           }
-          await build(sourceFile);
+          await build(sourceFile, page);
         }
       }
     }
@@ -148,16 +148,16 @@ async function main () {
   await plugins.initializePlugins()
   await updateConfig()
 
-  await browseToPage(puppeteerConfig, relaxedGlobals);
+  const page = await browseToPage(puppeteerConfig);
 
-  await renderDependencies(inputDir, relaxedGlobals)
+  await renderDependencies(inputDir, relaxedGlobals, page)
 
-  await build(inputPath)
+  await build(inputPath, page)
 
   if (program.buildOnce) {
     process.exit(0)
   } else {
-    watch()
+    watch(page)
   }
 }
 
@@ -167,13 +167,12 @@ async function main () {
  * ==============================================================
  */
 
-async function build (filepath) {
+async function build (filepath, page) {
   var shortFileName = filepath.replace(inputDir, '')
   if ((path.basename(filepath) === 'config.yml') || (filepath.endsWith('.plugin.js'))) {
     await updateConfig()
     return
   }
-  var page = relaxedGlobals.puppeteerPage
   // Ignore the call if ReLaXed is already busy processing other files.
 
   if (!(relaxedGlobals.watchedExtensions.some(ext => filepath.endsWith(ext)))) {
@@ -203,7 +202,7 @@ async function build (filepath) {
   }
 
   if (!taskPromise) {
-    taskPromise = fileToPdf(inputPath, relaxedGlobals, tempHTMLPath, outputPath, locals)
+    taskPromise = fileToPdf(inputPath, relaxedGlobals, tempHTMLPath, outputPath, locals, page)
   }
   await taskPromise
   var duration = ((performance.now() - t0) / 1000).toFixed(2)
@@ -221,14 +220,14 @@ async function build (filepath) {
  * ==============================================================
  */
 
-function watch () {
+function watch (page) {
   console.log(colors.magenta(`\nNow idle and waiting for file changes.`))
   chokidar.watch(watchLocations, {
     awaitWriteFinish: {
       stabilityThreshold: 50,
       pollInterval: 100
     }
-  }).on('change', build)
+  }).on('change', path => build(path, page))
 }
 
 function autodetectMasterFile (input) {
