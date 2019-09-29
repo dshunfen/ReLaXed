@@ -36,7 +36,7 @@
     "node-sass": "^4.12.0",
     "perf_hooks": "0.0.1",
     "pug": "^2.0.3",
-    "puppeteer": "^1.8.0",
+    "puppeteer": "^1.20.0",
     "vega": "^5.4.0",
     "vega-embed": "^4.2.1",
     "vega-lite": "^2.7.0"

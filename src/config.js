@@ -8,6 +8,7 @@ exports.preConfigure = function preConfigure(useSandbox) {
             '--disable-translate',
             '--disable-extensions',
             '--disable-sync'
-        ])
+        ]),
+        executablePath: 'google-chrome-unstable'
     }
 }
