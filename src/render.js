@@ -96,7 +96,7 @@ function waitForNetworkIdle (page, timeout, maxInflightRequests = 0) {
   }
 }
 
-async function generateHtml(pluginHooks, masterPug, locals, masterPath) {
+async function generateHtml(pluginHooks, masterPug, locals, basedir) {
   var pluginPugHeaders = [];
   for (var pugHeader of pluginHooks.pugHeaders) {
     pluginPugHeaders.push(pugHeader.instance);
@@ -104,13 +104,11 @@ async function generateHtml(pluginHooks, masterPug, locals, masterPath) {
   pluginPugHeaders = pluginPugHeaders.join('\n\n');
 
   var pugFilters = Object.assign(...pluginHooks.pugFilters.map(o => o.instance));
-
   var html = pug.render(pluginPugHeaders + '\n' + masterPug, Object.assign({}, locals ? locals : {}, {
-    filename: masterPath,
     fs: fs,
-    basedir: masterPath,
+    basedir: basedir,
     cheerio: cheerio,
-    __root__: masterPath,
+    __root__: basedir,
     path: path,
     require: require,
     performance: performance,
@@ -139,7 +137,8 @@ async function generateHtml(pluginHooks, masterPug, locals, masterPath) {
 
 async function generateHtmlFromContent(masterPug, reportId, relaxedGlobals, {}) {
   var pluginHooks = relaxedGlobals.pluginHooks
-  return generateHtml(pluginHooks, masterPug, {}, path.join(relaxedGlobals.basedir, reportId), relaxedGlobals);
+  const basedir = path.resolve(relaxedGlobals.basedir, reportId);
+  return generateHtml(pluginHooks, masterPug, {}, basedir);
 }
 
 async function generateHtmlFromPath(masterPath, relaxedGlobals, locals) {
@@ -147,7 +146,7 @@ async function generateHtmlFromPath(masterPath, relaxedGlobals, locals) {
   var html
   if (masterPath.endsWith('.pug')) {
     var masterPug = fs.readFileSync(masterPath, 'utf8')
-    html = generateHtml(pluginHooks, masterPug, locals, masterPath, relaxedGlobals);
+    html = generateHtml(pluginHooks, masterPug, locals, relaxedGlobals.basedir);
   } else if (masterPath.endsWith('.html')) {
     html = fs.readFileSync(masterPath, 'utf8')
   }
