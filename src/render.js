@@ -6,13 +6,11 @@ const fs = require('fs')
 const filesize = require('filesize')
 const path = require('path')
 const { performance } = require('perf_hooks')
-const { inlineSource } = require('inline-source')
 
 fileToPdf = async function (masterPath, relaxedGlobals, tempHTMLPath, outputPath, locals, page) {
   var timings = {t0: performance.now()}
 
   var html = await generateHtmlFromPath(masterPath, relaxedGlobals, locals)
-  html = await inlineTheThings(relaxedGlobals, null, html)
 
   timings.tHTML = performance.now()
   console.log(colors.magenta(`... HTML generated in ${((timings.tHTML - timings.t0) / 1000).toFixed(1)}s`))
@@ -46,11 +44,10 @@ browseToPage = async function browseToPage(puppeteerConfig) {
   return page;
 }
 
-contentToHtml = async function contentToHtml(masterPug, reportName, relaxedGlobals) {
+contentToHtml = async function contentToHtml(masterPug, assetPath, relaxedGlobals) {
   var timings = {t0: performance.now()}
 
-  var html = await generateHtmlFromContent(masterPug, reportName, relaxedGlobals, {})
-  html = await inlineTheThings(relaxedGlobals, reportName, html)
+  var html = await generateHtmlFromContent(masterPug, assetPath, relaxedGlobals, {})
 
   timings.tHTML = performance.now()
   console.log(colors.magenta(`... HTML generated in ${((timings.tHTML - timings.t0) / 1000).toFixed(1)}s`))
@@ -135,10 +132,9 @@ async function generateHtml(pluginHooks, masterPug, locals, basedir) {
   return html
 }
 
-async function generateHtmlFromContent(masterPug, reportId, relaxedGlobals, {}) {
+async function generateHtmlFromContent(masterPug, assetPath, relaxedGlobals, {}) {
   var pluginHooks = relaxedGlobals.pluginHooks
-  const basedir = path.resolve(relaxedGlobals.basedir, reportId);
-  return generateHtml(pluginHooks, masterPug, {}, basedir);
+  return generateHtml(pluginHooks, masterPug, {}, assetPath);
 }
 
 async function generateHtmlFromPath(masterPath, relaxedGlobals, locals) {
@@ -151,23 +147,6 @@ async function generateHtmlFromPath(masterPath, relaxedGlobals, locals) {
     html = fs.readFileSync(masterPath, 'utf8')
   }
 
-  return html;
-}
-
-async function inlineTheThings(relaxedGlobals, reportId, html) {
-   /*
-   *            INLINE THE THINGS
-   */
-  try {
-
-    html = await inlineSource(html, {
-      compress: true,
-      rootpath: reportId ? path.join(relaxedGlobals.basedir, reportId) : relaxedGlobals.basedir,
-      svgAsImg: true,
-    });
-  } catch (err) {
-    console.error(err)
-  }
   return html;
 }
 
