@@ -134,7 +134,7 @@ async function generateHtml(pluginHooks, masterPug, locals, basedir) {
 
 async function generateHtmlFromContent(masterPug, assetPath, relaxedGlobals, {}) {
   var pluginHooks = relaxedGlobals.pluginHooks
-  return generateHtml(pluginHooks, masterPug, {}, assetPath);
+  return await generateHtml(pluginHooks, masterPug, {}, assetPath);
 }
 
 async function generateHtmlFromPath(masterPath, relaxedGlobals, locals) {
@@ -142,7 +142,7 @@ async function generateHtmlFromPath(masterPath, relaxedGlobals, locals) {
   var html
   if (masterPath.endsWith('.pug')) {
     var masterPug = fs.readFileSync(masterPath, 'utf8')
-    html = generateHtml(pluginHooks, masterPug, locals, relaxedGlobals.basedir);
+    html = await generateHtml(pluginHooks, masterPug, locals, relaxedGlobals.basedir);
   } else if (masterPath.endsWith('.html')) {
     html = fs.readFileSync(masterPath, 'utf8')
   }
