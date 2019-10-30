@@ -9,6 +9,8 @@ exports.preConfigure = function preConfigure(useSandbox) {
             '--disable-extensions',
             '--disable-sync'
         ]),
+        // Source: https://docs.browserless.io/blog/2019/05/03/improving-puppeteer-performance.html
+        userDataDir: './chromeDataDir',
         executablePath: 'google-chrome-unstable'
     }
 }

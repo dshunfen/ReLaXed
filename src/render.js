@@ -20,18 +20,6 @@ fileToPdf = async function (masterPath, relaxedGlobals, tempHTMLPath, outputPath
   return await renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings, page)
 }
 
-async function contentToPdf(html, relaxedGlobals, tempDir, page) {
-  const timings = {t0: performance.now()};
-  timings.tHTML = timings.t0;
-
-  let tempHtmlPath = path.resolve(tempDir, 'report.html')
-  let tempPdfOutputPath = path.resolve(tempDir, 'report.pdf')
-
-  fs.writeFileSync(tempHtmlPath, html);
-
-  return await renderPdf(relaxedGlobals, tempHtmlPath, tempPdfOutputPath, html, timings, page);
-}
-
 browseToPage = async function browseToPage(puppeteerConfig) {
   const browser = await puppeteer.launch(puppeteerConfig);
   const page = await browser.newPage();
@@ -44,10 +32,10 @@ browseToPage = async function browseToPage(puppeteerConfig) {
   return page;
 }
 
-contentToHtml = async function contentToHtml(masterPug, assetPath, relaxedGlobals) {
+contentToHtml = async function contentToHtml(reportData, assetPath, relaxedGlobals) {
   var timings = {t0: performance.now()}
 
-  var html = await generateHtmlFromContent(masterPug, assetPath, relaxedGlobals, {})
+  var html = await generateHtmlFromPath(assetPath, relaxedGlobals, reportData)
 
   timings.tHTML = performance.now()
   console.log(colors.magenta(`... HTML generated in ${((timings.tHTML - timings.t0) / 1000).toFixed(1)}s`))
@@ -132,19 +120,22 @@ async function generateHtml(pluginHooks, masterPug, locals, basedir) {
   return html
 }
 
-async function generateHtmlFromContent(masterPug, assetPath, relaxedGlobals, {}) {
-  var pluginHooks = relaxedGlobals.pluginHooks
-  return await generateHtml(pluginHooks, masterPug, {}, assetPath);
-}
-
 async function generateHtmlFromPath(masterPath, relaxedGlobals, locals) {
   var pluginHooks = relaxedGlobals.pluginHooks
   var html
+  var masterPug
   if (masterPath.endsWith('.pug')) {
-    var masterPug = fs.readFileSync(masterPath, 'utf8')
+    masterPug = fs.readFileSync(masterPath, 'utf8')
     html = await generateHtml(pluginHooks, masterPug, locals, relaxedGlobals.basedir);
   } else if (masterPath.endsWith('.html')) {
     html = fs.readFileSync(masterPath, 'utf8')
+  } else if (path.resolve(masterPath, 'report.pug')) {
+    masterPug = fs.readFileSync(path.resolve(masterPath, 'report.pug'), 'utf8')
+    html = await generateHtml(pluginHooks, masterPug, locals, masterPath);
+  }
+
+  if (!html) {
+    throw new Error("No HTML was generated or found!")
   }
 
   return html;
@@ -249,6 +240,5 @@ async function renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings
 }
 
 exports.fileToPdf = fileToPdf
-exports.contentToPdf = contentToPdf
 exports.browseToPage = browseToPage
 exports.contentToHtml = contentToHtml
