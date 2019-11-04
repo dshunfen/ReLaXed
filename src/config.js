@@ -5,6 +5,8 @@ exports.preConfigure = function preConfigure(useSandbox) {
     return {
         headless: true,
         args: (!useSandbox ? ['--no-sandbox'] : []).concat([
+            '--hide-scrollbars',
+            '--mute-audio',
             '--disable-translate',
             '--disable-extensions',
             '--disable-sync'
