@@ -7,10 +7,10 @@ const filesize = require('filesize')
 const path = require('path')
 const { performance } = require('perf_hooks')
 
-fileToPdf = async function (masterPath, relaxedGlobals, tempHTMLPath, outputPath, locals, page, pugPath) {
+fileToPdf = async function (masterPath, relaxedGlobals, tempHTMLPath, outputPath, locals, page) {
   var timings = {t0: performance.now()}
 
-  var html = await generateHtmlFromPath(masterPath, relaxedGlobals, locals, pugPath)
+  var html = await generateHtmlFromPath(masterPath, relaxedGlobals, locals)
 
   timings.tHTML = performance.now()
   console.log(colors.magenta(`... HTML generated in ${((timings.tHTML - timings.t0) / 1000).toFixed(1)}s`))
@@ -30,6 +30,18 @@ browseToPage = async function browseToPage(puppeteerConfig) {
     console.log(colors.red('Error: ' + err.toString()));
   });
   return page;
+}
+
+contentToHtml = async function contentToHtml(reportData, assetPath, relaxedGlobals) {
+  var timings = {t0: performance.now()}
+
+  var html = await generateHtmlFromPath(assetPath, relaxedGlobals, reportData)
+
+  timings.tHTML = performance.now()
+  console.log(colors.magenta(`... HTML generated in ${((timings.tHTML - timings.t0) / 1000).toFixed(1)}s`))
+
+  return html;
+
 }
 
 // Wait for all the content on the page to finish loading
@@ -108,17 +120,13 @@ async function generateHtml(pluginHooks, masterPug, locals, basedir) {
   return html
 }
 
-async function generateHtmlFromPath(masterPath, relaxedGlobals, locals, pugPath) {
+async function generateHtmlFromPath(masterPath, relaxedGlobals, locals) {
   var pluginHooks = relaxedGlobals.pluginHooks
   var html
   var masterPug
   if (masterPath.endsWith('.pug')) {
     masterPug = fs.readFileSync(masterPath, 'utf8')
     html = await generateHtml(pluginHooks, masterPug, locals, relaxedGlobals.basedir);
-  } else if (pugPath) {
-    const myPug = path.resolve(masterPath, `${pugPath}.pug`)
-    masterPug = fs.readFileSync(myPug, 'utf8')
-    html = await generateHtml(pluginHooks, masterPug, locals, masterPath);
   } else if (masterPath.endsWith('.html')) {
     html = fs.readFileSync(masterPath, 'utf8')
   } else if (path.resolve(masterPath, 'report.pug')) {
@@ -233,3 +241,4 @@ async function renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings
 
 exports.fileToPdf = fileToPdf
 exports.browseToPage = browseToPage
+exports.contentToHtml = contentToHtml
