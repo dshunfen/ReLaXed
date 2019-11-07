@@ -7,18 +7,6 @@ const filesize = require('filesize')
 const path = require('path')
 const { performance } = require('perf_hooks')
 
-fileToPdf = async function (masterPath, relaxedGlobals, tempHTMLPath, outputPath, locals, page) {
-  var timings = {t0: performance.now()}
-
-  var html = await generateHtmlFromPath(masterPath, relaxedGlobals, locals)
-
-  timings.tHTML = performance.now()
-  console.log(colors.magenta(`... HTML generated in ${((timings.tHTML - timings.t0) / 1000).toFixed(1)}s`))
-
-  fs.writeFileSync(tempHTMLPath, html)
-
-  return await renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings, page)
-}
 
 browseToPage = async function browseToPage(puppeteerConfig) {
   const browser = await puppeteer.launch(puppeteerConfig);
@@ -121,6 +109,8 @@ async function generateHtml(pluginHooks, masterPug, locals, basedir) {
 }
 
 async function generateHtmlFromPath(masterPath, relaxedGlobals, locals) {
+  var timings = {t0: performance.now()}
+
   var pluginHooks = relaxedGlobals.pluginHooks
   var html
   var masterPug
@@ -134,6 +124,9 @@ async function generateHtmlFromPath(masterPath, relaxedGlobals, locals) {
     html = await generateHtml(pluginHooks, masterPug, locals, masterPath);
   }
 
+  timings.tHTML = performance.now()
+  console.log(colors.magenta(`... HTML generated in ${((timings.tHTML - timings.t0) / 1000).toFixed(1)}s`))
+
   if (!html) {
     throw new Error("No HTML was generated or found!")
   }
@@ -141,7 +134,9 @@ async function generateHtmlFromPath(masterPath, relaxedGlobals, locals) {
   return html;
 }
 
-async function renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings, page) {
+async function renderPdf(relaxedGlobals, htmlPath, outputPath, page) {
+  var timings = {t0: performance.now()}
+
   var pluginHooks = relaxedGlobals.pluginHooks
   if (page === undefined) {
     console.error('puppeteer page was not passed or is undefined');
@@ -151,7 +146,7 @@ async function renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings
    *            LOAD HTML
    */
   try {
-    await page.goto('file:' + tempHTMLPath, {
+    await page.goto('file:' + htmlPath, {
       waitUntil: ['load', 'domcontentloaded'],
       timeout: 1000 * (relaxedGlobals.config.pageRenderingTimeout || 30)
     })
@@ -167,7 +162,7 @@ async function renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings
   }
 
   timings.tLoad = performance.now()
-  console.log(colors.magenta(`... Document loaded in ${((timings.tLoad - timings.tHTML) / 1000).toFixed(1)}s`))
+  console.log(colors.magenta(`... Document loaded in ${((timings.tLoad - timings.t0) / 1000).toFixed(1)}s`))
 
   await waitForNetworkIdle(page, 200)
   timings.tNetwork = performance.now()
@@ -196,25 +191,14 @@ async function renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings
     printBackground: true
   }
 
-  function getMatch (string, query) {
-    var result = string.match(query)
-    if (result) {
-      result = result[1]
-    }
-    return result
+  if (relaxedGlobals.pageWidth) {
+    options.width = relaxedGlobals.pageWidth
   }
-
-  var width = getMatch(html, /-relaxed-page-width: (\S+);/m)
-  if (width) {
-    options.width = width
+  if (relaxedGlobals.pageHeight) {
+    options.height = relaxedGlobals.pageHeight
   }
-  var height = getMatch(html, /-relaxed-page-height: (\S+);/m)
-  if (height) {
-    options.height = height
-  }
-  var size = getMatch(html, /-relaxed-page-size: (\S+);/m)
-  if (size) {
-    options.size = size
+  if (relaxedGlobals.pageSize) {
+    options.size = relaxedGlobals.pageSize
   }
 
   for (var pageModifier of pluginHooks.pageModifiers) {
@@ -239,6 +223,7 @@ async function renderPdf(relaxedGlobals, tempHTMLPath, outputPath, html, timings
   return pdf;
 }
 
-exports.fileToPdf = fileToPdf
+exports.renderPdf = renderPdf
 exports.browseToPage = browseToPage
 exports.contentToHtml = contentToHtml
+exports.generateHtmlFromPath = generateHtmlFromPath
