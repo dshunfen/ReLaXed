@@ -9,7 +9,7 @@ const path = require('path')
 const fs = require('fs')
 const fg = require('fast-glob')
 const plugins = require('./plugins')
-const { fileToPdf, browseToPage } = require('./render')
+const { generateHtmlFromPath, renderPdf, browseToPage, autodetectMasterFile } = require('./render')
 const { preConfigure } = require('./config')
 
 var input, output
@@ -38,6 +38,10 @@ program.parse(process.argv)
 
 if (!input || fs.lstatSync(input).isDirectory()) {
   input = autodetectMasterFile(input)
+  if(!input) {
+    program.help()
+    process.exit(1)
+  }
 }
 
 const inputPath = path.resolve(input)
@@ -202,7 +206,9 @@ async function build (filepath, page) {
   }
 
   if (!taskPromise) {
-    taskPromise = fileToPdf(inputPath, relaxedGlobals, tempHTMLPath, outputPath, locals, page)
+    let html = await generateHtmlFromPath(inputPath, relaxedGlobals, locals)
+    fs.writeFileSync(tempHTMLPath, html);
+    taskPromise = renderPdf(relaxedGlobals, tempHTMLPath, outputPath, page)
   }
   await taskPromise
   var duration = ((performance.now() - t0) / 1000).toFixed(2)
@@ -228,28 +234,6 @@ function watch (page) {
       pollInterval: 100
     }
   }).on('change', path => build(path, page))
-}
-
-function autodetectMasterFile (input) {
-  var dir = input || '.'
-  var files = fs.readdirSync(dir).filter((name) => name.endsWith('.pug'))
-  var filename
-  if (files.length === 1) {
-    filename = files[0]
-  } else if (files.indexOf('master.pug') >= 0) {
-    filename = 'master.pug'
-  } else {
-    var error
-    if (input) {
-      error = `Could not find a master file in the provided directory ${input}`
-    } else {
-      error = `No input provided and could not find a master file in the current directory`
-    }
-    console.log(colors.red.bold(error))
-    program.help()
-    process.exit(1)
-  }
-  return path.join(dir, filename)
 }
 
 main()

@@ -20,18 +20,6 @@ browseToPage = async function browseToPage(puppeteerConfig) {
   return page;
 }
 
-contentToHtml = async function contentToHtml(reportData, assetPath, relaxedGlobals) {
-  var timings = {t0: performance.now()}
-
-  var html = await generateHtmlFromPath(assetPath, relaxedGlobals, reportData)
-
-  timings.tHTML = performance.now()
-  console.log(colors.magenta(`... HTML generated in ${((timings.tHTML - timings.t0) / 1000).toFixed(1)}s`))
-
-  return html;
-
-}
-
 // Wait for all the content on the page to finish loading
 function waitForNetworkIdle (page, timeout, maxInflightRequests = 0) {
   page.on('request', onRequestStarted)
@@ -69,7 +57,7 @@ function waitForNetworkIdle (page, timeout, maxInflightRequests = 0) {
   }
 }
 
-async function generateHtml(pluginHooks, masterPug, locals, basedir) {
+async function generateHtml(pluginHooks, masterPug, locals, pugPath, basedir) {
   var pluginPugHeaders = [];
   for (var pugHeader of pluginHooks.pugHeaders) {
     pluginPugHeaders.push(pugHeader.instance);
@@ -78,6 +66,7 @@ async function generateHtml(pluginHooks, masterPug, locals, basedir) {
 
   var pugFilters = Object.assign(...pluginHooks.pugFilters.map(o => o.instance));
   var html = pug.render(pluginPugHeaders + '\n' + masterPug, Object.assign({}, locals ? locals : {}, {
+    filename: pugPath,
     fs: fs,
     basedir: basedir,
     cheerio: cheerio,
@@ -113,23 +102,27 @@ async function generateHtmlFromPath(masterPath, relaxedGlobals, locals) {
 
   var pluginHooks = relaxedGlobals.pluginHooks
   var html
-  var masterPug
-  if (masterPath.endsWith('.pug')) {
-    masterPug = fs.readFileSync(masterPath, 'utf8')
-    html = await generateHtml(pluginHooks, masterPug, locals, relaxedGlobals.basedir);
-  } else if (masterPath.endsWith('.html')) {
+  // If we've specified HTML, then we don't need to render pug
+  if (masterPath.endsWith('.html')) {
     html = fs.readFileSync(masterPath, 'utf8')
-  } else if (path.resolve(masterPath, 'report.pug')) {
-    masterPug = fs.readFileSync(path.resolve(masterPath, 'report.pug'), 'utf8')
-    html = await generateHtml(pluginHooks, masterPug, locals, masterPath);
+  } else {
+    let pugPath = masterPath;
+    if (!masterPath.endsWith('.pug')) { // We've already specified the pug to render
+      pugPath = autodetectMasterFile(masterPath)
+    }
+    const pugContent = fs.readFileSync(pugPath, 'utf8')
+    if(pugPath && pugContent) {
+      const basedir = masterPath || relaxedGlobals.basedir;
+      html = await generateHtml(pluginHooks, pugContent, locals, pugPath, basedir);
+    }
   }
-
-  timings.tHTML = performance.now()
-  console.log(colors.magenta(`... HTML generated in ${((timings.tHTML - timings.t0) / 1000).toFixed(1)}s`))
 
   if (!html) {
     throw new Error("No HTML was generated or found!")
   }
+
+  timings.tHTML = performance.now()
+  console.log(colors.magenta(`... HTML generated in ${((timings.tHTML - timings.t0) / 1000).toFixed(1)}s`))
 
   return html;
 }
@@ -223,7 +216,31 @@ async function renderPdf(relaxedGlobals, htmlPath, outputPath, page) {
   return pdf;
 }
 
+function autodetectMasterFile (renderPath) {
+  var dir = renderPath || '.'
+  var basenamePug = `${path.basename(renderPath)}.pug`
+  var files = fs.readdirSync(dir).filter((name) => name.endsWith('.pug'))
+  var filename
+  if (files.length === 1) {
+    filename = files[0]
+  } else if (files.indexOf(basenamePug) >= 0) {
+    filename = basenamePug
+  } else if (files.indexOf('master.pug') >= 0) {
+    filename = 'master.pug'
+  } else {
+    var error
+    if (renderPath) {
+      error = `Could not find a master file in the provided directory ${renderPath}`
+    } else {
+      error = `No input provided and could not find a master file in the current directory`
+    }
+    console.log(colors.red.bold(error))
+    return
+  }
+  return path.join(dir, filename)
+}
+
+exports.autodetectMasterFile = autodetectMasterFile
 exports.renderPdf = renderPdf
 exports.browseToPage = browseToPage
-exports.contentToHtml = contentToHtml
 exports.generateHtmlFromPath = generateHtmlFromPath
