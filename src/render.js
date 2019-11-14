@@ -8,7 +8,7 @@ const path = require('path')
 const { performance } = require('perf_hooks')
 
 
-browseToPage = async function browseToPage(puppeteerConfig) {
+async function browseToPage(puppeteerConfig) {
   const browser = await puppeteer.launch(puppeteerConfig);
   const page = await browser.newPage();
 
